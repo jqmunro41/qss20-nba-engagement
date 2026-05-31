@@ -1,0 +1,9 @@
+metric,value
+cross_validated_r_squared,0.16225177705924498
+cross_validated_mae,463.17292210526324
+cross_validated_rmse,556.8971042361816
+baseline_mae,514.7313019390582
+baseline_rmse,608.440622522637
+mae_improvement_over_baseline,51.55837983379496
+rmse_improvement_over_baseline,51.54351828645542
+n_obs,190.0
