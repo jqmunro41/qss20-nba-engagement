@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
-
-
 """
-02_team_specific_player_viewership.py
+02_team_specific_player_viewership_descriptives.py
 
 Purpose:
     Compare average NBA game viewership when each selected all-star player played
@@ -24,8 +21,6 @@ Output:
 
 import pandas as pd
 
-
-# Functions
 
 def load_data(file_path):
     """
@@ -58,35 +53,36 @@ def check_required_columns(df, required_columns, dataset_name):
 
 def get_player_team_dictionary():
     """
-    Create a dictionary matching each all-star indicator column to the player's team.
+    Create a dictionary matching each all-star indicator column to the player's
+    full team name. These names should match team_1_full and team_2_full.
     """
     player_team = {
-        "lebron_james_played": "LA LAKERS",
-        "anthony_davis_played": "LA LAKERS",
-        "stephen_curry_played": "GOLDEN STATE",
-        "nikola_jokic_played": "DENVER",
-        "kevin_durant_played": "PHOENIX",
-        "devin_booker_played": "PHOENIX",
-        "jayson_tatum_played": "BOSTON",
-        "jaylen_brown_played": "BOSTON",
-        "giannis_antetokounmpo_played": "MILWAUKEE",
-        "damian_lillard_played": "MILWAUKEE",
-        "luka_doncic_played": "DALLAS",
-        "shai_gilgeous_alexander_played": "OKLAHOMA CITY",
-        "anthony_edwards_played": "MINNESOTA",
-        "jalen_brunson_played": "NEW YORK",
-        "julius_randle_played": "NEW YORK",
-        "joel_embiid_played": "PHILADELPHIA",
-        "tyrese_maxey_played": "PHILADELPHIA",
-        "tyrese_haliburton_played": "INDIANA",
-        "bam_adebayo_played": "MIAMI",
-        "paul_george_played": "LA CLIPPERS",
-        "kawhi_leonard_played": "LA CLIPPERS",
-        "paolo_banchero_played": "ORLANDO",
-        "donovan_mitchell_played": "CLEVELAND",
-        "trae_young_played": "ATLANTA",
-        "scottie_barnes_played": "TORONTO",
-        "karl_anthony_towns_played": "MINNESOTA"
+        "lebron_james_played": "Los Angeles Lakers",
+        "anthony_davis_played": "Los Angeles Lakers",
+        "stephen_curry_played": "Golden State Warriors",
+        "nikola_jokic_played": "Denver Nuggets",
+        "kevin_durant_played": "Phoenix Suns",
+        "devin_booker_played": "Phoenix Suns",
+        "jayson_tatum_played": "Boston Celtics",
+        "jaylen_brown_played": "Boston Celtics",
+        "giannis_antetokounmpo_played": "Milwaukee Bucks",
+        "damian_lillard_played": "Milwaukee Bucks",
+        "luka_doncic_played": "Dallas Mavericks",
+        "shai_gilgeous_alexander_played": "Oklahoma City Thunder",
+        "anthony_edwards_played": "Minnesota Timberwolves",
+        "jalen_brunson_played": "New York Knicks",
+        "julius_randle_played": "New York Knicks",
+        "joel_embiid_played": "Philadelphia 76ers",
+        "tyrese_maxey_played": "Philadelphia 76ers",
+        "tyrese_haliburton_played": "Indiana Pacers",
+        "bam_adebayo_played": "Miami Heat",
+        "paul_george_played": "Los Angeles Clippers",
+        "kawhi_leonard_played": "Los Angeles Clippers",
+        "paolo_banchero_played": "Orlando Magic",
+        "donovan_mitchell_played": "Cleveland Cavaliers",
+        "trae_young_played": "Atlanta Hawks",
+        "scottie_barnes_played": "Toronto Raptors",
+        "karl_anthony_towns_played": "Minnesota Timberwolves"
     }
 
     return player_team
@@ -119,60 +115,101 @@ def check_player_columns(df, player_team):
         )
 
 
+def prepare_team_names(df):
+    """
+    Clean team_1_full and team_2_full so matching is consistent.
+    """
+    df = df.copy()
+
+    df["team_1_full_clean"] = df["team_1_full"].astype(str).str.strip().str.upper()
+    df["team_2_full_clean"] = df["team_2_full"].astype(str).str.strip().str.upper()
+
+    return df
+
+
 def summarize_team_specific_viewership(df, player_team):
     """
     For each player, compare viewership in that player's team games when he played
     versus when he missed the game.
+
+    This version uses team_1_full and team_2_full so it counts all games involving
+    the player's team.
     """
     check_required_columns(
         df,
-        ["team_1_raw", "team_2_raw", "vwrs"],
+        ["team_1_full", "team_2_full", "vwrs"],
         "Final dataset"
     )
 
     check_player_columns(df, player_team)
+
+    df = prepare_team_names(df)
 
     results = []
     skipped_players = []
 
     for player_col, team in player_team.items():
 
+        team_clean = team.strip().upper()
+
         team_games = df[
-            (df["team_1_raw"] == team) |
-            (df["team_2_raw"] == team)
-        ]
+            (df["team_1_full_clean"] == team_clean) |
+            (df["team_2_full_clean"] == team_clean)
+        ].copy()
+
+        # Convert player indicator to numeric.
+        # Missing values are treated as 0 within that player's team games.
+        team_games[player_col] = pd.to_numeric(
+            team_games[player_col],
+            errors="coerce"
+        ).fillna(0)
 
         played_games = team_games[team_games[player_col] == 1]
         missed_games = team_games[team_games[player_col] == 0]
 
+        if len(team_games) == 0:
+            skipped_players.append(clean_player_name(player_col))
+            continue
+
         if len(played_games) > 0 and len(missed_games) > 0:
             avg_played = played_games["vwrs"].mean()
             avg_missed = missed_games["vwrs"].mean()
-
-            results.append({
-                "player": clean_player_name(player_col),
-                "team": team,
-                "team_games": len(team_games),
-                "games_played": len(played_games),
-                "games_missed": len(missed_games),
-                "avg_viewership_when_played": avg_played,
-                "avg_viewership_when_missed": avg_missed,
-                "difference": avg_played - avg_missed
-            })
-
+            difference = avg_played - avg_missed
+        elif len(played_games) > 0 and len(missed_games) == 0:
+            avg_played = played_games["vwrs"].mean()
+            avg_missed = None
+            difference = None
+        elif len(played_games) == 0 and len(missed_games) > 0:
+            avg_played = None
+            avg_missed = missed_games["vwrs"].mean()
+            difference = None
         else:
-            skipped_players.append(clean_player_name(player_col))
+            avg_played = None
+            avg_missed = None
+            difference = None
+
+        results.append({
+            "player": clean_player_name(player_col),
+            "team": team,
+            "team_games": len(team_games),
+            "games_played": len(played_games),
+            "games_missed": len(missed_games),
+            "avg_viewership_when_played": avg_played,
+            "avg_viewership_when_missed": avg_missed,
+            "difference": difference
+        })
 
     team_comparison = pd.DataFrame(results)
 
     team_comparison = team_comparison.sort_values(
         "difference",
-        ascending=False
+        ascending=False,
+        na_position="last"
     )
 
     print("\nTeam-specific player viewership diagnostics:")
-    print(f"Players included in comparison: {team_comparison.shape[0]}")
-    print(f"Players skipped because they had no played or missed games: {len(skipped_players)}")
+    print(f"Players included in output: {team_comparison.shape[0]}")
+    print(f"Players skipped because their team had no games: {len(skipped_players)}")
 
     if len(skipped_players) > 0:
         print("Skipped players:")
@@ -185,13 +222,13 @@ def summarize_team_specific_viewership(df, player_team):
 
 
 def save_data(df, output_path):
-   
+    """
+    Save output dataset.
+    """
     df.to_csv(output_path, index=False)
 
     print(f"\nSaved team-specific player comparison to: {output_path}")
 
-
-# Main script
 
 def main():
     input_file = "data/qss20_finalds.csv"
@@ -211,4 +248,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
