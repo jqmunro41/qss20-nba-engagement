@@ -1,66 +1,99 @@
 # qss20-nba-engagement
 
-# NBA Style of Play, Star Power, and Audience Engagement
+## NBA Star Power and National TV Viewership
 
-## Project Summary
+This project studies whether NBA star-player availability is associated with higher national television viewership during the 2023-24 regular season. The main outcome is `vwrs`, which measures average national TV viewership in thousands. The analysis compares viewership when specific All-Star players played versus when they did not, estimates player and matchup regressions with game-level controls, and uses a random forest model to estimate predicted viewership lift by player.
 
-This project examines what drives audience engagement with NBA games. I am currently considering two related research questions. First, I may investigate which specific star players drive the most engagement with nationally televised NBA games. Second, I may examine whether different style-of-play predictors explain highlight viewership and national TV viewership differently.
-
-The broader motivation is that NBA engagement may depend on both who is playing and how the game is played. Star players may attract viewers because of name recognition, while certain styles of play, such as three-point shooting, fast pace, dunks, or other highlight plays, may be more important for YouTube engagement.
+The project is observational, so the results should be interpreted as associations rather than causal effects. Many high-profile players appear in games that are already selected for national television, involve popular teams, or fall in stronger broadcast windows, so player estimates may reflect both star power and scheduling context.
 
 ## Research Questions
 
-This project is currently focused on one of two possible directions:
-
-1. **Star player engagement question:**  
-   Which NBA star players are most strongly associated with higher audience engagement?
-
-2. **Style-of-play engagement question:**  
-   Which style-of-play variables better predict YouTube highlight viewership compared with national TV viewership?
-
-The first question focuses on player-specific effects, while the second compares different forms of fan engagement. National TV viewership may be driven more by team quality, star power, and broadcast context, while YouTube highlight viewership may be more responsive to exciting or highlight-friendly styles of play.
-
-## Data
-
-This repository currently includes two main datasets:
-
-- `ratings_final_allstar_indicators.csv`: game-level national TV ratings data with added indicator variables for whether specific All-Star players played in each game.
-- `nba_highlights_final.csv`: game-level YouTube highlight data, including engagement measures such as video views, likes, and comments.
-
-The ratings dataset is useful for analyzing national TV viewership. The highlights dataset is useful for analyzing digital engagement with NBA game highlights.
+1. Which NBA stars are associated with the largest increases in national TV viewership?
+2. How does viewership differ when a player plays compared with when that same player misses games involving his own team?
+3. Which opposing-star matchups are associated with higher national TV viewership after controlling for team quality, betting market expectations, holiday games, and team valuation?
+4. Can player availability and game-level controls help predict national TV viewership better than a simple baseline model?
 
 ## Repository Structure
 
-- `data/`: contains the project datasets.
-- `code/`: contains scripts and notebooks used to load, clean, and analyze the data.
-- `output/`: contains figures and tables generated from the analysis.
+```text
+qss20-nba-engagement/
+├── code/                  # Python scripts used for cleaning, analysis, modeling, and figures
+├── data/                  # Raw, cleaned, and analysis-ready CSV files
+├── output/                # Figures and other generated outputs
+└── README.md              # Project overview and reproducibility guide
+```
 
-## Code Files
+## Data Files
 
-- `NBA_stats.ipynb`: notebook used to collect, clean, and organize NBA statistical data.
-- `figures.r`: R script used to create preliminary descriptive figures.
+| File | Description | Used by |
+|---|---|---|
+| [`data/ratings_final_allstar_indicators.csv`](data/ratings_final_allstar_indicators.csv) | Game-level national TV dataset with team names, viewership, betting controls, style variables, and All-Star played indicators. | `00_merge_team_valuation.py` |
+| [`data/team_valuation_game_level.csv`](data/team_valuation_game_level.csv) | Game-level file with `GAME_ID` and average team valuation in billions. | `00_merge_team_valuation.py` |
+| [`data/qss20_finalds.csv`](data/qss20_finalds.csv) | Final merged game-level analysis dataset. This is the main input for the descriptive, regression, and prediction scripts. | `01`, `02`, `03`, `04` |
+| [`data/player_viewership_differences.csv`](data/player_viewership_differences.csv) | Player-level descriptive output comparing average viewership when each player played versus did not play. | `05_website_figures.py` |
+| [`data/team_specific_player_viewership.csv`](data/team_specific_player_viewership.csv) | Team-specific descriptive output comparing viewership in a player's own team games when he played versus missed. | `05_website_figures.py` |
+| [`data/player_regression_results.csv`](data/player_regression_results.csv) | One-player-at-a-time OLS regression results using log viewership as the outcome. | Final paper / tables |
+| [`data/matchup_regression_results.csv`](data/matchup_regression_results.csv) | OLS regression results for selected opposing-star matchup indicators. | Final paper / tables |
+| [`data/prediction_lift_model_evaluation.csv`](data/prediction_lift_model_evaluation.csv) | Cross-validated random forest evaluation metrics and baseline comparison. | Final paper / tables |
+| [`data/prediction_lift_by_player.csv`](data/prediction_lift_by_player.csv) | Player-level predicted viewership lift from the random forest model. | `05_website_figures.py`, final paper |
 
-## Preliminary Outputs
+## Code Files: Inputs, Purpose, and Outputs
 
-The repository currently includes preliminary figures related to the project, including:
+Run the scripts in numerical order. Each script is written so that the file paths match the repository folder structure.
 
-- A figure showing total games missed by All-Stars per season.
-- A figure comparing NBA viewership and three-point attempt rate over time.
+| Script | Inputs | What it does | Outputs |
+|---|---|---|---|
+| [`code/00_merge_team_valuation.py`](code/00_merge_team_valuation.py) | `data/ratings_final_allstar_indicators.csv`; `data/team_valuation_game_level.csv` | Merges average team valuation into the main ratings and All-Star indicator dataset using `GAME_ID`. Checks for required columns, duplicate game IDs, row-count changes, and missing valuation values. | `data/qss20_finalds.csv` |
+| [`code/01_player_viewership_descriptives.py`](code/01_player_viewership_descriptives.py) | `data/qss20_finalds.csv` | Finds all player indicator columns ending in `_played`. For each player, compares average viewership when the player played to average viewership when the player did not play across the full national TV sample. | `data/player_viewership_differences.csv` |
+| [`code/02_team_specific_player_viewership_descriptives.py`](code/02_team_specific_player_viewership_descriptives.py) | `data/qss20_finalds.csv` | Compares viewership only within games involving each player's own team. This avoids comparing a player playing for his team to unrelated games between other teams. | `data/team_specific_player_viewership.csv` |
+| [`code/03_player_matchup_regressions.py`](code/03_player_matchup_regressions.py) | `data/qss20_finalds.csv` | Creates `log_vwrs`, runs one-player-at-a-time OLS regressions with robust HC3 standard errors, and estimates selected opposing-star matchup regressions. Player regressions control for `avg_net_rating`, `spread`, `holiday`, and `total`. Matchup regressions also include `avg_team_valuation_bil`. | `data/player_regression_results.csv`; `data/matchup_regression_results.csv` |
+| [`code/04_random_forest.py`](code/04_random_forest.py) | `data/qss20_finalds.csv` | Fits a random forest model predicting `vwrs` using player indicators with at least 10 appearances plus game-level controls. Uses 5-fold cross-validated predictions, compares performance to a baseline mean-prediction model, and estimates each player's predicted viewership lift. | `data/prediction_lift_model_evaluation.csv`; `data/prediction_lift_by_player.csv`; `output/prediction_lift_by_player.png` |
+| [`code/05_website_figures.py`](code/05_website_figures.py) | `data/player_viewership_differences.csv`; `data/team_specific_player_viewership.csv` | Creates presentation-ready figures for the project website and lightning talk. The figures show top descriptive viewership lifts and played-versus-missed viewership gaps. | `output/fig1_top_player_viewership_lift.png`; `output/fig2_team_specific_viewership_lift.png`; `output/fig3_played_vs_missed_viewership.png` |
 
-These figures are exploratory and help motivate the project. The All-Star absences figure relates to the player availability and star power question. The three-point shooting and viewership figure relates to the style-of-play question.
+## Main Outputs
 
-## Current Progress
+| Output | Description |
+|---|---|
+| [`output/fig1_top_player_viewership_lift.png`](output/fig1_top_player_viewership_lift.png) | Bar chart of players associated with the largest descriptive national viewership increases. |
+| [`output/fig2_team_specific_viewership_lift.png`](output/fig2_team_specific_viewership_lift.png) | Bar chart of team-specific viewership increases when a player played versus missed games involving his own team. |
+| [`output/fig3_played_vs_missed_viewership.png`](output/fig3_played_vs_missed_viewership.png) | Dot-and-line chart comparing average viewership when selected players played versus missed. |
+| [`output/prediction_lift_by_player.png`](output/prediction_lift_by_player.png) | Random forest predicted viewership lift by player. |
 
-So far, I have:
+## How to Reproduce the Analysis
 
-- Collected and organized national TV ratings data.
-- Added player-specific All-Star indicator variables to the ratings dataset.
-- Collected YouTube highlight engagement data.
-- Created preliminary figures related to star availability, three-point shooting, and viewership.
-- Begun organizing the repository into separate folders for data, code, and output.
+From the project root directory, run:
 
-## Planned Next Steps
+```bash
+python code/00_merge_team_valuation.py
+python code/01_player_viewership_descriptives.py
+python code/02_team_specific_player_viewership_descriptives.py
+python code/03_player_matchup_regressions.py
+python code/04_random_forest.py
+python code/05_website_figures.py
+```
 
-Next, I plan to narrow the project toward one main research question. If I focus on star players, I will estimate which All-Star indicators are most strongly associated with TV viewership or highlight engagement. If I focus on style of play, I will compare predictors of YouTube highlight views and national TV viewership using variables such as pace, three-point attempt rate, fastbreak scoring, dunks, and other highlight-related measures.
+The scripts create or update files in `data/` and `output/`. The most important final dataset is `data/qss20_finalds.csv`, and the most important final model outputs are `data/player_regression_results.csv`, `data/matchup_regression_results.csv`, `data/prediction_lift_model_evaluation.csv`, and `data/prediction_lift_by_player.csv`.
 
-The final analysis will likely use regression models and/or machine learning methods to compare which variables are most predictive of different forms of NBA audience engagement.
+## Required Python Packages
+
+The analysis uses the following Python packages:
+
+```text
+pandas
+numpy
+matplotlib
+statsmodels
+scikit-learn
+```
+
+## Methods Summary
+
+The project uses three types of analysis. First, descriptive comparisons calculate the difference in average viewership when each player played versus when he did not. Second, OLS regressions estimate player and matchup associations with log viewership while controlling for game-level context. Third, a random forest model predicts viewership using player indicators and controls, then uses cross-validated predictions to estimate each player's predicted viewership lift. The random forest evaluation also compares model error to a baseline model that always predicts average viewership.
+
+## Notes on Interpretation
+
+- `vwrs` is measured in thousands of viewers.
+- Player indicators equal 1 when the player appeared in the game and 0 otherwise.
+- Descriptive differences do not control for opponent, team popularity, broadcast slot, or other scheduling factors.
+- Regression and random forest models include selected game-level controls, but they still do not prove causal effects.
+- Players with very few appearances are excluded from the random forest lift chart so that the estimates are not driven by extremely small samples.
